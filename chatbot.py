@@ -178,7 +178,7 @@ def vintern_from_image(model, tokenizer, file_path: str, question: str = None, s
     if question is None:
         question = "<image>\nMô tả hình ảnh một cách chi tiết trả về dạng markdown."
     generation_config = dict(
-        max_new_tokens=1024, do_sample=False, num_beams=3, repetition_penalty=2.5
+        max_new_tokens=2048, do_sample=False, num_beams=3, repetition_penalty=2.5
     )
     response = model.chat(tokenizer, pixel_values, question, generation_config)
     print(f"User: {question}\nAssistant: {response}")
