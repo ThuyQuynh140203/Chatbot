@@ -1,0 +1,29 @@
+# Loại trừ thư mục môi trường ảo
+.venv/
+venv/
+ENV/
+
+# Loại trừ file biên dịch Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Loại trừ file tạm, log, cache
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Loại trừ dữ liệu model, vectorstore, output lớn
+vectorstores/
+data/
+poppler-24.08.0/
+Release-*.zip
+
+# Loại trừ file cấu hình IDE
+.vscode/
+.idea/
+
+# Loại trừ file hệ điều hành
+Thumbs.db 
