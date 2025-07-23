@@ -41,9 +41,15 @@ def set_ocr_cache(image_path: str, value: str):
     print("💾 [OCR CACHE SAVE]", image_path)
 
 
-# ==== KHỞI TẠO MÔ HÌNH VINTERN-1B-v3_5 ==== #
+# ==== Cấu hình thiết bị và kiểu dữ liệu ==== #
+_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+
+# ==== Biến toàn cục ==== #
 _model_vintern = None
 _tokenizer_vintern = None
+
+# ==== Tiền xử lý ảnh ==== #
 _transform = T.Compose([
     T.Lambda(lambda img: img.convert("RGB") if img.mode != "RGB" else img),
     T.Resize((448, 448), interpolation=InterpolationMode.BICUBIC),
@@ -51,74 +57,63 @@ _transform = T.Compose([
     T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
 ])
 
+# ==== Khởi tạo mô hình Vintern ==== #
 def init_vintern():
     global _model_vintern, _tokenizer_vintern
-    if _model_vintern is None or _tokenizer_vintern is None:
-        print("🔄 Đang tải mô hình Vintern-1B-v3_5 từ HuggingFace...")
-        try:
-            _model_vintern = AutoModel.from_pretrained(
-                "5CD-AI/Vintern-1B-v3_5",
-                torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-                low_cpu_mem_usage=True,
-                trust_remote_code=True,
-                use_flash_attn=False,
-            ).eval()
-        except:
-            _model_vintern = AutoModel.from_pretrained(
-                "5CD-AI/Vintern-1B-v3_5",
-                torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-                low_cpu_mem_usage=True,
-                trust_remote_code=True
-            ).eval()
+    if _model_vintern and _tokenizer_vintern:
+        return
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        _model_vintern.to(device)
+    print("🔄 Tải mô hình Vintern-1B-v3_5...")
+    _model_vintern = AutoModel.from_pretrained(
+        "5CD-AI/Vintern-1B-v3_5",
+        torch_dtype=_dtype,
+        low_cpu_mem_usage=True,
+        trust_remote_code=True,
+        use_flash_attn=False,
+    ).to(_device).eval()
 
-        _tokenizer_vintern = AutoTokenizer.from_pretrained(
-            "5CD-AI/Vintern-1B-v3_5", trust_remote_code=True, use_fast=False
-        )
-        print("✅ Đã tải Vintern-1B-v3_5.")
+    _tokenizer_vintern = AutoTokenizer.from_pretrained(
+        "5CD-AI/Vintern-1B-v3_5", trust_remote_code=True, use_fast=False
+    )
+    print("Sẵn sàng dùng Vintern.")
 
+# ==== Hàm OCR có cache ==== #
 def vintern_ocr_cached(image_path: str) -> str:
     init_vintern()
 
-    cached_result = get_ocr_cache(image_path)
-    if cached_result:
-        return cached_result
+    cached = get_ocr_cache(image_path)
+    if cached:
+        return cached
 
-    print("🔍 [OCR RUNNING]", image_path)
+    print(f"🔍 OCR: {image_path}")
     image = Image.open(image_path).convert("RGB")
-    pixel_values = _transform(image).unsqueeze(0)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    pixel_values = pixel_values.to(device=device, dtype=dtype)
-    _model_vintern.to(device)
+    pixel_values = _transform(image).unsqueeze(0).to(device=_device, dtype=_dtype)
 
     prompt = "<image>\nMô tả hình ảnh một cách chi tiết trả về dạng markdown."
     raw_response = _model_vintern.chat(
         _tokenizer_vintern,
         pixel_values,
         prompt,
-        generation_config={"max_new_tokens": 2048, "do_sample": False, "num_beams": 3, "repetition_penalty": 3.5}
+        generation_config={
+            "max_new_tokens": 2048,
+            "do_sample": False,
+            "num_beams": 3,
+            "repetition_penalty": 3.5
+        }
     )
 
-    if isinstance(raw_response, list) and isinstance(raw_response[0], dict) and "generated_text" in raw_response[0]:
+    if isinstance(raw_response, list) and isinstance(raw_response[0], dict):
         response = raw_response[0]["generated_text"]
-    elif isinstance(raw_response, str):
-        response = raw_response
     else:
         response = str(raw_response)
 
-    # Lọc dòng trùng lặp
-    lines = response.strip().splitlines()
-    seen = set()
-    filtered = []
-    for line in lines:
+    # Loại bỏ dòng trùng
+    seen, lines = set(), []
+    for line in response.strip().splitlines():
         if line not in seen:
-            filtered.append(line)
+            lines.append(line)
             seen.add(line)
-    response = "\n".join(filtered)
+    response = "\n".join(lines)
 
     set_ocr_cache(image_path, response)
     return response
