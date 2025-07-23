@@ -36,6 +36,10 @@ pip install -r requirements.txt
 ```
 
 ### 3. Chuẩn bị dữ liệu
+- **Tự tạo thư mục `data/`** (nếu chưa có):
+  ```bash
+  mkdir data
+  ```
 - Đặt các file PDF, DOCX, hình ảnh vào thư mục `data/`.
 - Chạy lệnh sau để tạo vector database cho tìm kiếm ngữ nghĩa:
 ```bash
@@ -89,6 +93,7 @@ python chatbot.py
 ```
 
 ## Lưu ý
+- **Bạn cần tự tạo thư mục `data/` trước khi chạy các script nếu chưa có.**
 - Để sử dụng OCR, nên có GPU để tăng tốc (nếu không sẽ chạy trên CPU, sẽ chậm).
 - Lịch sử hội thoại và truy vấn được lưu vào MongoDB.
 - Kết quả OCR và LLM được cache bằng Redis để tăng hiệu năng.
